@@ -1,0 +1,629 @@
+<!DOCTYPE html>
+<html lang="fr" data-fr-scheme="system">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex">
+<title>Enquête d'impact covoiturage.beta.gouv 2026</title>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@gouvfr/dsfr@1/dist/dsfr.min.css">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@gouvfr/dsfr@1/dist/utility/utility.min.css">
+<style>
+  .champ-masque { display: none; }
+  .form-wrapper { max-width: 48rem; }
+  .fr-fieldset__content .fr-radio-group,
+  .fr-fieldset__content .fr-checkbox-group { margin-bottom: .25rem; }
+</style>
+</head>
+<body>
+
+<!-- lien d'évitement : masqué jusqu'à réception du focus clavier -->
+<div class="fr-skiplinks">
+  <nav class="fr-container" role="navigation" aria-label="Accès rapide">
+    <ul class="fr-skiplinks__list">
+      <li><a class="fr-link" href="#contenu">Aller au contenu</a></li>
+    </ul>
+  </nav>
+</div>
+
+<header role="banner" class="fr-header">
+  <div class="fr-header__body">
+    <div class="fr-container">
+      <div class="fr-header__body-row">
+        <div class="fr-header__brand">
+          <div class="fr-header__brand-top">
+            <div class="fr-header__logo">
+              <!-- la Marianne et la devise sont ajoutées par le CSS du DSFR -->
+              <p class="fr-logo">Ministère<br>des Transports</p>
+            </div>
+          </div>
+          <div class="fr-header__service">
+            <!-- nouvel onglet : un clic depuis le formulaire ferait perdre les réponses -->
+            <a href="https://covoiturage.beta.gouv.fr" target="_blank" rel="noopener"
+               title="Accueil — covoiturage.beta.gouv.fr (nouvelle fenêtre)">
+              <p class="fr-header__service-title">covoiturage.beta.gouv.fr</p>
+            </a>
+            <p class="fr-header__service-tagline">Tiers de confiance du covoiturage du quotidien</p>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</header>
+
+<main id="contenu">
+<div class="fr-container fr-my-6w form-wrapper">
+
+  <h1 class="fr-h3">Enquête d'impact covoiturage.beta.gouv 2026</h1>
+
+  <div class="fr-callout fr-mb-5w">
+    <p class="fr-callout__text fr-text--sm">
+      Chaque année, covoiturage.beta.gouv évalue l'impact de ses services auprès des
+      collectivités qui développent ou accompagnent des politiques en faveur du covoiturage.
+      Cette enquête nous permet de mieux comprendre vos usages, vos besoins et la valeur
+      apportée par nos services et nos données dans la conception, le pilotage et
+      l'évaluation de vos politiques locales.<br><br>
+      Le questionnaire comporte 17 questions et nécessite environ 5 minutes.
+      Merci pour votre participation&nbsp;!
+    </p>
+  </div>
+
+  <div id="zone-alerte" aria-live="polite"></div>
+
+  <form id="formulaire" novalidate>
+    <div id="champs"></div>
+
+    <div style="position:absolute;left:-9999px" aria-hidden="true">
+      <label for="site_web">Ne pas remplir</label>
+      <input type="text" id="site_web" name="site_web" tabindex="-1" autocomplete="off">
+    </div>
+
+    <ul class="fr-btns-group fr-btns-group--inline-md fr-mt-5w">
+      <li><button type="submit" class="fr-btn" id="btn-envoyer">Envoyer mes réponses</button></li>
+    </ul>
+  </form>
+</div>
+</main>
+
+<script type="module" src="https://cdn.jsdelivr.net/npm/@gouvfr/dsfr@1/dist/dsfr.module.min.js"></script>
+<script>
+/* ==========================================================================
+   1. CONFIGURATION
+   ========================================================================== */
+
+const CONFIG = {
+  // Base de l'instance, organisation incluse, sans slash final
+  BASE: "https://grist.incubateur.dnum.din.developpement-durable.gouv.fr/o/covoiturage",
+  // Clé de partage du formulaire Grist existant (celle de l'URL /forms/<clé>/4)
+  SHARE_KEY: "3vdwqUP2Wwukc1jzjLGu3m",
+  TABLE_ID: "Table1",
+
+  // Aucune clé API : la clé de partage autorise déjà la création anonyme de lignes,
+  // exactement comme le formulaire Grist natif.
+
+  MESSAGE_SUCCES: "Vos réponses ont bien été enregistrées. Merci pour votre participation.",
+  MESSAGE_ERREUR: "L'envoi a échoué. Merci de réessayer dans quelques instants."
+};
+
+/* --------------------------------------------------------------------------
+   SCHÉMA
+
+   `id`   = colId Grist (ne pas renommer sans changer la colonne dans Grist)
+   `type` = info | text | email | textarea | radio | checkboxes
+   `listeGrist: true` → colonne Grist de type Liste de choix
+
+   CONDITIONS
+     { champ: "x", vaut: "v" }      { champ: "x", parmi: ["a","b"] }
+     { champ: "x", rempli: true }   { et: [...] }  { ou: [...] }  { non: ... }
+
+   Sur un champ : `showIf` (affichage) et `required` (true ou condition).
+-------------------------------------------------------------------------- */
+
+// Raccourcis de conditions réutilisés
+const POLITIQUE = "Menez_vous_une_politique_en_faveur_du_covoiturage_";
+const A_UNE_POLITIQUE = {
+  champ: POLITIQUE,
+  parmi: ["Oui, en cours", "Oui, par le passé", "Non, en réflexion"]
+};
+const utilise = (colId) => ({ et: [
+  { champ: colId, rempli: true },
+  { non: { champ: colId, vaut: "Pas utilisé" } }
+]});
+
+const UTILITE = ["Pas utilisé", "Peu utile", "Utile", "Indispensable"];
+
+const ACCOMPAGNEMENT = "Services_d_accompagnement_Club_collectivites_Echanges_avec_l_equipe_Sessions_de_demonstration_des_outils_";
+const SERVICES = [ACCOMPAGNEMENT, "Documentation_publique", "Espace_partenaire",
+                  "Observatoire", "Open_data"];
+
+// vrai tant que le répondant n'a pas déclaré « Pas utilisé » sur les 5 services :
+// tant qu'il n'a rien coché, les questions d'impact restent donc affichées
+const AU_MOINS_UN_SERVICE_UTILISE = {
+  non: { et: SERVICES.map(c => ({ champ: c, vaut: "Pas utilisé" })) }
+};
+
+const MENE_UNE_POLITIQUE = { non: { champ: POLITIQUE, vaut: "Non" } };
+
+const SCHEMA = [
+{
+  section: "Votre collectivité",
+  champs: [
+    {
+      id: "Vous_etes_",
+      label: "Vous êtes…",
+      type: "radio", required: true,
+      options: ["Commune", "EPCI-AOM", "Département", "Région", "Autre"]
+    },
+    {
+      id: "Taille",
+      label: "Taille",
+      type: "radio", required: true,
+      options: ["moins de 100 000 hab.", "100 000 à 500 000", "plus de 500 000"]
+    },
+    {
+      id: POLITIQUE,
+      label: "Menez-vous une politique en faveur du covoiturage ?",
+      type: "radio", required: true,
+      options: ["Oui, en cours", "Oui, par le passé", "Non, en réflexion", "Non"]
+    },
+    {
+      // CONDITIONNELLE — remplace le « Si "oui" ou "non en réflexion"… » du libellé
+      id: "Quels_types_de_politique_",
+      label: "Quels types de politique ?",
+      type: "checkboxes", listeGrist: true,
+      showIf: A_UNE_POLITIQUE,
+      options: ["Incitation financière", "Voie réservée", "Auto-stop organisé",
+                "Ligne de covoiturage", "Aires de covoiturage",
+                "Sensibilisation entreprises", "Autre"]
+    },
+    {
+      // CONDITIONNELLE — n'apparaît que pour « Oui, par le passé »
+      id: "D",
+      label: "Pouvez-vous nous expliquer en quelques mots pourquoi vous avez arrêté votre dispositif ?",
+      type: "textarea",
+      showIf: { champ: POLITIQUE, vaut: "Oui, par le passé" }
+    },
+    {
+      // CONDITIONNELLE
+      id: "Principales_difficultes_rencontrees",
+      label: "Quelles ont été les principales difficultés rencontrées ?",
+      type: "checkboxes", listeGrist: true,
+      showIf: A_UNE_POLITIQUE,
+      options: ["Budget", "Choix et relation opérateurs", "Mesure de l'impact",
+                "Accès aux données", "Portage politique", "Faible demande",
+                "Fraude", "Pas de difficultés"]
+    },
+    {
+      // CONDITIONNELLE — deux cas d'usage pour la même colonne Grist :
+      // préciser les difficultés rencontrées, ou expliquer l'absence de politique
+      id: "Pourquoi_",
+      label: "Pouvez-vous préciser ces difficultés ?",
+      labelSi: [
+        { si: { champ: POLITIQUE, vaut: "Non" },
+          label: "Pourquoi ne menez-vous pas de politique en faveur du covoiturage ?" }
+      ],
+      type: "textarea",
+      showIf: { ou: [
+        { et: [
+          { champ: "Principales_difficultes_rencontrees", rempli: true },
+          { non: { champ: "Principales_difficultes_rencontrees", vaut: "Pas de difficultés" } }
+        ]},
+        { champ: POLITIQUE, vaut: "Non" }
+      ]}
+    }
+  ]
+},
+
+{
+  section: "Les services covoiturage.beta.gouv",
+  champs: [
+    {
+      id: "_rappel_services", type: "info",
+      contenu: `<p class="fr-text--sm fr-mb-1w"><strong>Utilité de nos services</strong><br>
+        Pour vous rafraîchir la mémoire :</p>
+        <ul class="fr-text--sm">
+          <li><a class="fr-link" target="_blank" rel="noopener" href="https://doc.covoiturage.beta.gouv.fr/nos-services/le-registre-de-preuve-de-covoiturage/les-ressources/webinaires">Club collectivités</a></li>
+          <li><a class="fr-link" target="_blank" rel="noopener" href="https://observatoire.covoiturage.gouv.fr/observatoire/territoire/">Observatoire</a></li>
+          <li><a class="fr-link" target="_blank" rel="noopener" href="https://partenaire.covoiturage.beta.gouv.fr">Espace partenaire</a></li>
+          <li><a class="fr-link" target="_blank" rel="noopener" href="https://www.data.gouv.fr/datasets/trajets-realises-en-covoiturage-registre-de-preuve-de-covoiturage">Open data</a></li>
+          <li><a class="fr-link" target="_blank" rel="noopener" href="https://doc.covoiturage.beta.gouv.fr">Documentation publique</a></li>
+        </ul>`
+    },
+    {
+      id: "Services_d_accompagnement_Club_collectivites_Echanges_avec_l_equipe_Sessions_de_demonstration_des_outils_",
+      label: "Services d'accompagnement (Club collectivités, échanges avec l'équipe, page LinkedIn, newsletter, sessions de démonstration des outils)",
+      type: "radio", required: true, inline: true, options: UTILITE
+    },
+    {
+      id: "Documentation_publique", label: "Documentation publique",
+      type: "radio", required: true, inline: true, options: UTILITE
+    },
+    {
+      id: "Espace_partenaire", label: "Espace partenaire",
+      type: "radio", required: true, inline: true, options: UTILITE
+    },
+    {
+      id: "Observatoire", label: "Observatoire",
+      type: "radio", required: true, inline: true, options: UTILITE
+    },
+    {
+      id: "Open_data", label: "Open data",
+      type: "radio", required: true, inline: true, options: UTILITE
+    },
+    {
+      // CONDITIONNELLE — on ne demande de suggestions que sur un service utilisé
+      id: "Suggestions_d_amelioration_des_services_d_accompagnement",
+      label: "Suggestions d'amélioration des services d'accompagnement",
+      type: "textarea",
+      showIf: utilise("Services_d_accompagnement_Club_collectivites_Echanges_avec_l_equipe_Sessions_de_demonstration_des_outils_")
+    },
+    {
+      // CONDITIONNELLE
+      id: "E",
+      label: "Suggestions d'amélioration de l'Observatoire",
+      type: "textarea",
+      showIf: utilise("Observatoire")
+    },
+    {
+      // CONDITIONNELLE — au moins un des trois autres outils utilisé
+      id: "Suggestions_d_amelioration_des_outils_Observatoire_Espace_partenaire_Open_data_Documentation",
+      label: "Suggestions d'amélioration des autres outils (espace partenaire, open data, documentation)",
+      type: "textarea",
+      showIf: { ou: [ utilise("Espace_partenaire"), utilise("Open_data"), utilise("Documentation_publique") ] }
+    },
+    {
+      // CONDITIONNELLE — sans usage d'aucun service, la question n'a pas d'objet
+      id: "Les_donnees_et_contenus_covoiturage_beta_gouv_vous_ont_servi_a_",
+      label: "Les données et contenus covoiturage.beta.gouv vous ont servi à…",
+      type: "checkboxes", listeGrist: true,
+      showIf: AU_MOINS_UN_SERVICE_UTILISE,
+      options: ["Dimensionner un budget", "Calibrer un montant d'incitation",
+                "Évaluer une campagne", "Convaincre les élus",
+                "Négocier avec un opérateu", "Aucun de ces usages"]
+    },
+    {
+      id: "Avez_vous_un_acces_compte_utilisateur_a_l_espace_partenaire_",
+      label: "Avez-vous un accès (compte utilisateur) à l'espace partenaire ?",
+      type: "radio",
+      aide: "L'espace partenaire est accessible à toute collectivité qui en fait la demande et permet de générer des exports de données brutes des trajets sur son territoire.",
+      options: [
+        "Non, je n'ai pas d'accès à l'espace partenaire",
+        "Non, je n'ai pas d'accès à l'espace partenaire. En revanche, je serais intéressé pour en ouvrir un afin d'avoir accès à la fonctionnalité d'export des données",
+        "Oui, j’ai déjà un compte utilisateur qui me donne accès à l’espace partenaire"
+      ]
+    },
+    {
+      // CONDITIONNELLE — remplace le « Si intéressé : » du libellé
+      id: "Si_interesse_Quelles_analyses_envisagez_vous_",
+      label: "Quelles analyses envisagez-vous ?",
+      type: "textarea",
+      showIf: { champ: "Avez_vous_un_acces_compte_utilisateur_a_l_espace_partenaire_",
+                vaut: "Non, je n'ai pas d'accès à l'espace partenaire. En revanche, je serais intéressé pour en ouvrir un afin d'avoir accès à la fonctionnalité d'export des données" }
+    }
+  ]
+},
+
+{
+  section: "Impact",
+  champs: [
+    {
+      id: "De_0_a_10_quel_est_l_impact_de_covoiturage_beta_gouv_sur_votre_politique_covoiturage_au_niveau_local_",
+      label: "De 0 à 10, quel est l'impact des services covoiturage.beta.gouv sur votre politique covoiturage au niveau local ?",
+      type: "radio", required: true, inline: true,
+      // CONDITIONNELLE — aucun service utilisé : pas d'impact à noter
+      showIf: AU_MOINS_UN_SERVICE_UTILISE,
+      options: ["0","1","2","3","4","5","6","7","8","9","10"]
+    },
+    {
+      // CONDITIONNELLE — suppose à la fois un usage des services et une politique en cours
+      id: "Si_demain_tous_les_services_s_arretaient_vous_",
+      label: "Si demain tous les services covoiturage.beta.gouv s'arrêtaient, vous…",
+      type: "radio", required: true,
+      showIf: { et: [AU_MOINS_UN_SERVICE_UTILISE, MENE_UNE_POLITIQUE] },
+      options: ["poursuivriez à l'identique", "réduiriez vos investissements",
+                "arrêteriez votre politique"]
+    },
+    {
+      // CONDITIONNELLE — seulement en cas de réduction ou d'arrêt
+      id: "Pouvez_vous_preciser_",
+      label: "Pouvez-vous préciser ?",
+      type: "textarea",
+      showIf: { champ: "Si_demain_tous_les_services_s_arretaient_vous_",
+                parmi: ["réduiriez vos investissements", "arrêteriez votre politique"] }
+    },
+    {
+      // CONDITIONNELLE — sans politique covoiturage, pas de dispositif à arrêter
+      id: "En_cas_d_arret_de_la_mesure_Fonds_vert_covoiturage",
+      label: "En cas d'arrêt de la mesure Fonds vert covoiturage",
+      type: "radio", required: true,
+      showIf: MENE_UNE_POLITIQUE,
+      options: ["Maintien sur fonds propres", "Réduction de l'enveloppe",
+                "Arrêt du dispositif", "Je ne sais pas"]
+    },
+    {
+      id: "La_concentration_du_marche_rachat_de_BlaBlaCar_Daily_par_Karos_change_t_elle_votre_besoin_de_donnees_independantes_",
+      label: "La concentration du marché (rachat de BlaBlaCar Daily par Karos) change-t-elle votre besoin de données indépendantes ?",
+      type: "radio", required: true,
+      options: ["Oui, il augmente", "Oui, il diminue", "Non", "Je ne sais pas"]
+    }
+  ]
+},
+
+{
+  section: "Conclusion",
+  champs: [
+    {
+      id: "Comment_avez_vous_connu_covoiturage_beta_gouv_",
+      label: "Comment avez-vous connu covoiturage.beta.gouv ?",
+      type: "radio", required: true,
+      options: ["Internet", "Réseaux sociaux", "Email", "Événement",
+                "Autre collectivité", "Opérateur",
+                "Partenaire (Cerema, ADEME, DGITM…)", "Autre"]
+    },
+    {
+      id: "Nom_de_votre_collectivite_structure",
+      label: "Nom de votre collectivité / structure",
+      type: "text"
+    },
+    {
+      id: "Email_pour_vous_recontacter",
+      label: "Email pour vous recontacter",
+      type: "email"
+    }
+  ]
+}
+];
+
+/* ==========================================================================
+   2. MOTEUR — rien à modifier en dessous
+   ========================================================================== */
+
+const $champs = document.getElementById("champs");
+const $form = document.getElementById("formulaire");
+const $alerte = document.getElementById("zone-alerte");
+
+// les options peuvent s'écrire en chaînes simples : on normalise
+const tousLesChamps = SCHEMA.flatMap(s => s.champs.map(c => ({
+  ...c,
+  _section: s,
+  options: (c.options || []).map(o =>
+    typeof o === "string" ? { valeur: o, label: o } : o)
+})));
+
+const saisissables = tousLesChamps.filter(c => c.type !== "info");
+
+/* ---------- Conditions ---------- */
+
+function estRempli(v) {
+  if (Array.isArray(v)) return v.length > 0;
+  if (typeof v === "boolean") return v;
+  return v !== undefined && v !== null && String(v).trim() !== "";
+}
+
+function evaluer(cond, d) {
+  if (cond === undefined || cond === null) return false;
+  if (cond === true || cond === false) return cond;
+  if (cond.et) return cond.et.every(c => evaluer(c, d));
+  if (cond.ou) return cond.ou.some(c => evaluer(c, d));
+  if (cond.non) return !evaluer(cond.non, d);
+
+  const v = d[cond.champ];
+  if ("vaut" in cond)
+    return Array.isArray(v) ? v.includes(cond.vaut) : v === cond.vaut;
+  if ("parmi" in cond)
+    return Array.isArray(v) ? v.some(x => cond.parmi.includes(x)) : cond.parmi.includes(v);
+  if ("rempli" in cond) return estRempli(v) === cond.rempli;
+  return false;
+}
+
+function lireDonnees() {
+  const d = {};
+  for (const c of saisissables) {
+    if (c.type === "checkboxes") {
+      d[c.id] = [...$form.querySelectorAll(`input[name="${CSS.escape(c.id)}"]:checked`)]
+        .map(i => i.value);
+    } else if (c.type === "radio") {
+      const el = $form.querySelector(`input[name="${CSS.escape(c.id)}"]:checked`);
+      d[c.id] = el ? el.value : "";
+    } else {
+      const el = $form.querySelector(`[name="${CSS.escape(c.id)}"]`);
+      d[c.id] = el ? el.value : "";
+    }
+  }
+  return d;
+}
+
+const estVisible = (c, d) =>
+  (!c._section.showIf || evaluer(c._section.showIf, d)) &&
+  (!c.showIf || evaluer(c.showIf, d));
+
+const estObligatoire = (c, d) =>
+  c.required === true ? true : (c.required ? evaluer(c.required, d) : false);
+
+// un champ peut porter plusieurs libellés selon le contexte (`labelSi`)
+const libelleDe = (c, d) =>
+  (c.labelSi || []).find(v => evaluer(v.si, d))?.label || c.label;
+
+/* ---------- Rendu ---------- */
+
+const echapper = s => String(s).replace(/[&<>"']/g, ch =>
+  ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[ch]));
+
+function rendreChamp(c) {
+  const idGroupe = `groupe-${c.id}`;
+  const idAide = `${c.id}-aide`;
+  const aide = c.aide ? `<span class="fr-hint-text" id="${idAide}">${echapper(c.aide)}</span>` : "";
+  const descr = c.aide ? ` aria-describedby="${idAide}"` : "";
+
+  if (c.type === "info")
+    return `<div class="fr-mb-4w" id="${idGroupe}" data-champ="${c.id}">${c.contenu}</div>`;
+
+  if (c.type === "radio" || c.type === "checkboxes") {
+    const typeInput = c.type === "radio" ? "radio" : "checkbox";
+    const classe = c.type === "radio" ? "fr-radio-group" : "fr-checkbox-group";
+    const options = c.options.map(o => `
+      <div class="${classe}">
+        <input type="${typeInput}" id="${c.id}--${echapper(o.valeur)}"
+               name="${echapper(c.id)}" value="${echapper(o.valeur)}">
+        <label class="fr-label" for="${c.id}--${echapper(o.valeur)}">${echapper(o.label)}</label>
+      </div>`).join("");
+    return `
+      <fieldset class="fr-fieldset fr-mb-4w${c.inline ? " fr-fieldset--inline" : ""}"
+                id="${idGroupe}" data-champ="${c.id}">
+        <legend class="fr-fieldset__legend fr-text--regular">
+          <span data-label>${echapper(c.label)}</span>${aide}
+        </legend>
+        <div class="fr-fieldset__content">${options}</div>
+        <p class="fr-error-text fr-hidden" data-erreur></p>
+      </fieldset>`;
+  }
+
+  const saisie = c.type === "textarea"
+    ? `<textarea class="fr-input" id="${c.id}" name="${echapper(c.id)}" rows="3"${descr}></textarea>`
+    : `<input class="fr-input" type="${c.type}" id="${c.id}" name="${echapper(c.id)}"${descr}>`;
+
+  return `
+    <div class="fr-input-group fr-mb-4w" id="${idGroupe}" data-champ="${c.id}">
+      <label class="fr-label" for="${c.id}"><span data-label>${echapper(c.label)}</span>${aide}</label>
+      ${saisie}
+      <p class="fr-error-text fr-hidden" data-erreur></p>
+    </div>`;
+}
+
+$champs.innerHTML = SCHEMA.map((s, i) => `
+  <section class="fr-mb-6w" data-section="${i}">
+    <h2 class="fr-h5 fr-mb-3w">${echapper(s.section)}</h2>
+    ${s.champs.map(c => rendreChamp(
+        tousLesChamps.find(x => x.id === c.id))).join("")}
+  </section>`).join("");
+
+/* ---------- Réactivité ---------- */
+
+function rafraichir() {
+  const d = lireDonnees();
+
+  for (const c of tousLesChamps) {
+    const groupe = document.getElementById(`groupe-${c.id}`);
+    if (!groupe) continue;
+
+    const visible = estVisible(c, d);
+    groupe.classList.toggle("champ-masque", !visible);
+    groupe.querySelectorAll("input, select, textarea")
+      .forEach(el => { el.disabled = !visible; });
+
+    const label = groupe.querySelector("[data-label]");
+    if (label) label.textContent = libelleDe(c, d) + (visible && estObligatoire(c, d) ? " *" : "");
+  }
+
+  SCHEMA.forEach((s, i) => {
+    const bloc = document.querySelector(`[data-section="${i}"]`);
+    const visible = s.champs.some(c =>
+      estVisible(tousLesChamps.find(x => x.id === c.id), d));
+    bloc.classList.toggle("champ-masque", !visible);
+  });
+}
+
+/* ---------- Validation ---------- */
+
+function afficherErreur(id, message) {
+  const groupe = document.getElementById(`groupe-${id}`);
+  if (!groupe) return;
+  const p = groupe.querySelector("[data-erreur]");
+  if (!p) return;
+  p.textContent = message;
+  p.classList.toggle("fr-hidden", !message);
+  groupe.classList.toggle("fr-input-group--error", !!message);
+}
+
+function valider(d) {
+  let premier = null;
+  for (const c of saisissables) {
+    afficherErreur(c.id, "");
+    if (!estVisible(c, d)) continue;
+    const v = d[c.id];
+
+    if (estObligatoire(c, d) && !estRempli(v)) {
+      afficherErreur(c.id, "Ce champ est obligatoire.");
+      premier = premier || c.id;
+    } else if (c.type === "email" && estRempli(v) &&
+               !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(v)) {
+      afficherErreur(c.id, "Adresse électronique invalide.");
+      premier = premier || c.id;
+    }
+  }
+  return premier;
+}
+
+/* ---------- Envoi ---------- */
+
+const pourGrist = (c, v) =>
+  c.type === "checkboxes" ? (c.listeGrist ? ["L", ...v] : v.join(", ")) : v;
+
+function alerte(type, titre, texte, scroller = true) {
+  $alerte.innerHTML = `
+    <div class="fr-alert fr-alert--${type} fr-mb-4w">
+      <h3 class="fr-alert__title">${echapper(titre)}</h3>
+      <p>${echapper(texte)}</p>
+    </div>`;
+  if (scroller) $alerte.scrollIntoView({ behavior: "smooth", block: "center" });
+}
+
+// amène l'utilisateur au premier champ en erreur (le groupe n'est pas focusable
+// lui-même : pour un groupe de radios, on vise la première case)
+function allerAu(id) {
+  const groupe = document.getElementById(`groupe-${id}`);
+  if (!groupe) return;
+  const cible = groupe.querySelector("input, textarea, select");
+  groupe.scrollIntoView({ behavior: "smooth", block: "center" });
+  cible?.focus({ preventScroll: true });
+}
+
+$form.addEventListener("input", rafraichir);
+$form.addEventListener("change", rafraichir);
+
+$form.addEventListener("submit", async (e) => {
+  e.preventDefault();
+  if (document.getElementById("site_web").value !== "") return; // anti-spam
+
+  const d = lireDonnees();
+  const erreur = valider(d);
+  if (erreur) {
+    alerte("error", "Le formulaire comporte des erreurs",
+           "Vérifiez les champs signalés.", false);
+    allerAu(erreur);
+    return;
+  }
+
+  const fields = {};
+  for (const c of saisissables) {
+    if (!estVisible(c, d)) continue;   // les champs masqués ne sont pas transmis
+    fields[c.id] = pourGrist(c, d[c.id]);
+  }
+
+  const url = `${CONFIG.BASE}/api/s/${CONFIG.SHARE_KEY}`
+            + `/tables/${CONFIG.TABLE_ID}/records`;
+
+  const btn = document.getElementById("btn-envoyer");
+  btn.disabled = true;
+  btn.textContent = "Envoi en cours…";
+
+  try {
+    const r = await fetch(url, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ records: [{ fields }] })
+    });
+    if (!r.ok) throw new Error(`${r.status} ${await r.text()}`);
+    $form.classList.add("fr-hidden");
+    alerte("success", "Réponses enregistrées", CONFIG.MESSAGE_SUCCES);
+  } catch (err) {
+    console.error(err);
+    alerte("error", "Erreur", CONFIG.MESSAGE_ERREUR);
+    btn.disabled = false;
+    btn.textContent = "Envoyer mes réponses";
+  }
+});
+
+rafraichir();
+</script>
+</body>
+</html>

@@ -197,7 +197,7 @@ const SCHEMA = [
       // CONDITIONNELLE — remplace le « Si "oui" ou "non en réflexion"… » du libellé
       id: "Quels_types_de_politique_",
       label: "Quels types de politique ?",
-      type: "checkboxes", listeGrist: true,
+      type: "checkboxes", listeGrist: true, required: true,
       showIf: A_UNE_POLITIQUE,
       options: ["Incitation financière", "Voie réservée", "Auto-stop organisé",
                 "Ligne de covoiturage", "Aires de covoiturage",
@@ -214,7 +214,7 @@ const SCHEMA = [
       // CONDITIONNELLE
       id: "Principales_difficultes_rencontrees",
       label: "Quelles ont été les principales difficultés rencontrées ?",
-      type: "checkboxes", listeGrist: true,
+      type: "checkboxes", listeGrist: true, required: true,
       showIf: A_UNE_POLITIQUE,
       options: ["Budget", "Choix et relation opérateurs", "Mesure de l'impact",
                 "Accès aux données", "Portage politique", "Faible demande",

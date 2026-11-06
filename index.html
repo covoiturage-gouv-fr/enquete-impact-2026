@@ -302,16 +302,16 @@ const SCHEMA = [
       // CONDITIONNELLE — sans usage d'aucun service, la question n'a pas d'objet
       id: "Les_donnees_et_contenus_covoiturage_beta_gouv_vous_ont_servi_a_",
       label: "Les données et contenus covoiturage.beta.gouv vous ont servi à…",
-      type: "checkboxes", listeGrist: true,
+      type: "checkboxes", listeGrist: true, required: true,
       showIf: AU_MOINS_UN_SERVICE_UTILISE,
       options: ["Dimensionner un budget", "Calibrer un montant d'incitation",
                 "Évaluer une campagne", "Convaincre les élus",
-                "Négocier avec un opérateu", "Aucun de ces usages"]
+                "Négocier avec un opérateur", "Aucun de ces usages"]
     },
     {
       id: "Avez_vous_un_acces_compte_utilisateur_a_l_espace_partenaire_",
       label: "Avez-vous un accès (compte utilisateur) à l'espace partenaire ?",
-      type: "radio",
+      type: "radio", required: true,
       aide: "L'espace partenaire est accessible à toute collectivité qui en fait la demande et permet de générer des exports de données brutes des trajets sur son territoire.",
       options: [
         "Non, je n'ai pas d'accès à l'espace partenaire",
